@@ -45,7 +45,7 @@ def download_data(city, lat, lon):
         f"https://power.larc.nasa.gov/api/temporal/daily/point"
         f"?parameters=T2M&community=RE"
         f"&longitude={lon}&latitude={lat}"
-        f"&start=19810101&end=20241231&format=JSON"
+        f"&start=19810101&end=20250422&format=JSON"
     )
     r = requests.get(url, timeout=60)
     temp_data = r.json()["properties"]["parameter"]["T2M"]
