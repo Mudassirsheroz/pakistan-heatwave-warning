@@ -3,6 +3,7 @@ import requests
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from sklearn.preprocessing import StandardScaler
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.ensemble import GradientBoostingRegressor
@@ -135,18 +136,11 @@ if predict_btn:
         <h3 style="color:{max_color};">Overall Risk: {max_level}</h3>
         <p>{max_msg}</p><p>Max: <b>{max_temp:.1f}C</b></p>
     </div>""", unsafe_allow_html=True)
-    # ── PAKISTAN MAP ─────────────────────────────────────────────
-st.divider()
-st.subheader("🗺️ Pakistan Heat Wave Map")
-st.markdown("Har city ka current alert status — click karo details ke liye!")
-
 
 # ── PAKISTAN MAP ─────────────────────────────────────────────
 st.divider()
 st.subheader("🗺️ Pakistan Heat Wave Map")
 st.markdown("Har city ka current alert status — circle pe hover karo details ke liye!")
-
-import plotly.graph_objects as go
 
 map_data = []
 for city, (lat, lon) in CITIES.items():
@@ -176,18 +170,13 @@ for city, (lat, lon) in CITIES.items():
         pass
 
 fig_map = go.Figure()
-
 for d in map_data:
     fig_map.add_trace(go.Scattergeo(
         lat=[d["lat"]],
         lon=[d["lon"]],
         mode="markers+text",
-        marker=dict(
-            size=20,
-            color=d["color"],
-            opacity=0.8,
-            line=dict(width=2, color="white")
-        ),
+        marker=dict(size=20, color=d["color"], opacity=0.8,
+                    line=dict(width=2, color="white")),
         text=d["city"],
         textposition="top center",
         hovertemplate=(
@@ -204,14 +193,10 @@ fig_map.update_layout(
         scope="asia",
         center=dict(lat=30, lon=69),
         projection_scale=4,
-        showland=True,
-        landcolor="#F5F5F5",
-        showocean=True,
-        oceancolor="#AED6F1",
-        showcoastlines=True,
-        coastlinecolor="#BDC3C7",
-        showcountries=True,
-        countrycolor="#BDC3C7",
+        showland=True, landcolor="#F5F5F5",
+        showocean=True, oceancolor="#AED6F1",
+        showcoastlines=True, coastlinecolor="#BDC3C7",
+        showcountries=True, countrycolor="#BDC3C7",
     ),
     height=500,
     margin=dict(l=0, r=0, t=0, b=0),
@@ -222,7 +207,6 @@ fig_map.update_layout(
 
 st.plotly_chart(fig_map, use_container_width=True)
 
-# Legend
 col1, col2, col3, col4 = st.columns(4)
 col1.markdown("🟢 **Normal** — <40°C", unsafe_allow_html=True)
 col2.markdown("🟡 **Warning** — 40-44°C", unsafe_allow_html=True)
