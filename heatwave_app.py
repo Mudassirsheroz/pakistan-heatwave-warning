@@ -143,14 +143,14 @@ st.markdown("Har city ka current alert status — click karo details ke liye!")
 import folium
 from streamlit_folium import st_folium
 
-# Map banao
-m = folium.Map(
-    location=[30.3753, 69.3451],
-    zoom_start=5,
-    tiles='CartoDB positron'
-)
+# ── PAKISTAN MAP ─────────────────────────────────────────────
+st.divider()
+st.subheader("🗺️ Pakistan Heat Wave Map")
+st.markdown("Har city ka current alert status — circle pe hover karo details ke liye!")
 
-# Har city ka forecast aur marker add karo
+import plotly.graph_objects as go
+
+map_data = []
 for city, (lat, lon) in CITIES.items():
     try:
         mdl, scl, df_c = train_model(city)
@@ -160,29 +160,73 @@ for city, (lat, lon) in CITIES.items():
         max_temp = max(temps)
         level, msg = get_alert(max_temp)
         color_map = {
-            "Normal": "green",
-            "Warning": "orange", 
-            "Danger": "red",
-            "Extreme": "darkred"
+            "Normal":  "#2ECC71",
+            "Warning": "#F39C12",
+            "Danger":  "#E67E22",
+            "Extreme": "#E74C3C"
         }
-        marker_color = color_map[level]
-        popup_text = f"""
-        <b>{city}</b><br>
-        Max: {max_temp:.1f}°C<br>
-        Alert: {level}<br>
-        {msg}
-        """
-        folium.CircleMarker(
-            location=[lat, lon],
-            radius=15,
-            color=marker_color,
-            fill=True,
-            fill_color=marker_color,
-            fill_opacity=0.7,
-            popup=folium.Popup(popup_text, max_width=200),
-            tooltip=f"{city}: {max_temp:.1f}°C — {level}"
-        ).add_to(m)
+        map_data.append({
+            "city": city,
+            "lat": lat,
+            "lon": lon,
+            "temp": max_temp,
+            "level": level,
+            "color": color_map[level],
+            "msg": msg
+        })
     except:
         pass
 
-st_folium(m, width=700, height=500)
+fig_map = go.Figure()
+
+for d in map_data:
+    fig_map.add_trace(go.Scattergeo(
+        lat=[d["lat"]],
+        lon=[d["lon"]],
+        mode="markers+text",
+        marker=dict(
+            size=20,
+            color=d["color"],
+            opacity=0.8,
+            line=dict(width=2, color="white")
+        ),
+        text=d["city"],
+        textposition="top center",
+        hovertemplate=(
+            f"<b>{d['city']}</b><br>"
+            f"Max Temp: {d['temp']:.1f}°C<br>"
+            f"Alert: {d['level']}<br>"
+            f"{d['msg']}<extra></extra>"
+        ),
+        name=d["city"]
+    ))
+
+fig_map.update_layout(
+    geo=dict(
+        scope="asia",
+        center=dict(lat=30, lon=69),
+        projection_scale=4,
+        showland=True,
+        landcolor="#F5F5F5",
+        showocean=True,
+        oceancolor="#AED6F1",
+        showcoastlines=True,
+        coastlinecolor="#BDC3C7",
+        showcountries=True,
+        countrycolor="#BDC3C7",
+    ),
+    height=500,
+    margin=dict(l=0, r=0, t=0, b=0),
+    showlegend=False,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)"
+)
+
+st.plotly_chart(fig_map, use_container_width=True)
+
+# Legend
+col1, col2, col3, col4 = st.columns(4)
+col1.markdown("🟢 **Normal** — <40°C", unsafe_allow_html=True)
+col2.markdown("🟡 **Warning** — 40-44°C", unsafe_allow_html=True)
+col3.markdown("🟠 **Danger** — 44-47°C", unsafe_allow_html=True)
+col4.markdown("🔴 **Extreme** — >47°C", unsafe_allow_html=True)
