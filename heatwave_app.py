@@ -73,18 +73,98 @@ def train_model(city):
     model.fit(X[:split], y[:split])
     return model, scaler, df
 
+# ── PAGE CONFIG ───────────────────────────────────────────────
 st.set_page_config(page_title="Pakistan Heat Wave Warning", page_icon="🌡️", layout="wide")
 st.title("🌡️ Pakistan Heat Wave Early Warning System")
 st.markdown("**AI-Powered 7-Day Forecast — NASA Data & Machine Learning**")
 st.divider()
 
+# ── PAKISTAN MAP (hamesha dikhe) ──────────────────────────────
+st.subheader("🗺️ Pakistan Heat Wave Map — Live Status")
+st.markdown("Saari cities ka current alert — circle pe hover karo!")
+
+with st.spinner("Saari cities ka data load ho raha hai..."):
+    map_data = []
+    for map_city, (lat, lon) in CITIES.items():
+        try:
+            mdl, scl, df_c = train_model(map_city)
+            last_30 = scl.transform(df_c[["temperature"]].tail(30)).flatten()
+            pred = mdl.predict([last_30])[0]
+            temps = scl.inverse_transform(pred.reshape(-1,1)).flatten()
+            max_temp = max(temps)
+            level, msg = get_alert(max_temp)
+            color_map = {
+                "Normal":  "#2ECC71",
+                "Warning": "#F39C12",
+                "Danger":  "#E67E22",
+                "Extreme": "#E74C3C"
+            }
+            map_data.append({
+                "city": map_city,
+                "lat": lat,
+                "lon": lon,
+                "temp": max_temp,
+                "level": level,
+                "color": color_map[level],
+                "msg": msg
+            })
+        except:
+            pass
+
+fig_map = go.Figure()
+for d in map_data:
+    fig_map.add_trace(go.Scattergeo(
+        lat=[d["lat"]],
+        lon=[d["lon"]],
+        mode="markers+text",
+        marker=dict(size=20, color=d["color"], opacity=0.8,
+                    line=dict(width=2, color="white")),
+        text=d["city"],
+        textposition="top center",
+        hovertemplate=(
+            f"<b>{d['city']}</b><br>"
+            f"Max Temp: {d['temp']:.1f}°C<br>"
+            f"Alert: {d['level']}<br>"
+            f"{d['msg']}<extra></extra>"
+        ),
+        name=d["city"]
+    ))
+
+fig_map.update_layout(
+    geo=dict(
+        scope="asia",
+        center=dict(lat=30, lon=69),
+        projection_scale=4,
+        showland=True, landcolor="#F5F5F5",
+        showocean=True, oceancolor="#AED6F1",
+        showcoastlines=True, coastlinecolor="#BDC3C7",
+        showcountries=True, countrycolor="#BDC3C7",
+    ),
+    height=500,
+    margin=dict(l=0, r=0, t=0, b=0),
+    showlegend=False,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)"
+)
+
+st.plotly_chart(fig_map, use_container_width=True)
+
+col1, col2, col3, col4 = st.columns(4)
+col1.markdown("🟢 **Normal** — <40°C", unsafe_allow_html=True)
+col2.markdown("🟡 **Warning** — 40-44°C", unsafe_allow_html=True)
+col3.markdown("🟠 **Danger** — 44-47°C", unsafe_allow_html=True)
+col4.markdown("🔴 **Extreme** — >47°C", unsafe_allow_html=True)
+
+# ── CITY FORECAST ─────────────────────────────────────────────
+st.divider()
+st.subheader("🔍 City Ka Detailed Forecast")
+
 city = st.selectbox("City select karo:", list(CITIES.keys()))
 predict_btn = st.button("🔍 Forecast Dekho!")
 
 if predict_btn:
-    with st.spinner(f"{city} ka data load ho raha hai..."):
+    with st.spinner(f"{city} ka forecast ban raha hai..."):
         model, scaler, df = train_model(city)
-    with st.spinner("AI predict kar raha hai..."):
         last_30 = scaler.transform(df[["temperature"]].tail(30)).flatten()
         pred_scaled = model.predict([last_30])[0]
         pred_temps = scaler.inverse_transform(pred_scaled.reshape(-1,1)).flatten()
@@ -136,79 +216,3 @@ if predict_btn:
         <h3 style="color:{max_color};">Overall Risk: {max_level}</h3>
         <p>{max_msg}</p><p>Max: <b>{max_temp:.1f}C</b></p>
     </div>""", unsafe_allow_html=True)
-
-# ── PAKISTAN MAP ─────────────────────────────────────────────
-st.divider()
-st.subheader("🗺️ Pakistan Heat Wave Map")
-st.markdown("Har city ka current alert status — circle pe hover karo details ke liye!")
-
-map_data = []
-for city, (lat, lon) in CITIES.items():
-    try:
-        mdl, scl, df_c = train_model(city)
-        last_30 = scl.transform(df_c[["temperature"]].tail(30)).flatten()
-        pred = mdl.predict([last_30])[0]
-        temps = scl.inverse_transform(pred.reshape(-1,1)).flatten()
-        max_temp = max(temps)
-        level, msg = get_alert(max_temp)
-        color_map = {
-            "Normal":  "#2ECC71",
-            "Warning": "#F39C12",
-            "Danger":  "#E67E22",
-            "Extreme": "#E74C3C"
-        }
-        map_data.append({
-            "city": city,
-            "lat": lat,
-            "lon": lon,
-            "temp": max_temp,
-            "level": level,
-            "color": color_map[level],
-            "msg": msg
-        })
-    except:
-        pass
-
-fig_map = go.Figure()
-for d in map_data:
-    fig_map.add_trace(go.Scattergeo(
-        lat=[d["lat"]],
-        lon=[d["lon"]],
-        mode="markers+text",
-        marker=dict(size=20, color=d["color"], opacity=0.8,
-                    line=dict(width=2, color="white")),
-        text=d["city"],
-        textposition="top center",
-        hovertemplate=(
-            f"<b>{d['city']}</b><br>"
-            f"Max Temp: {d['temp']:.1f}°C<br>"
-            f"Alert: {d['level']}<br>"
-            f"{d['msg']}<extra></extra>"
-        ),
-        name=d["city"]
-    ))
-
-fig_map.update_layout(
-    geo=dict(
-        scope="asia",
-        center=dict(lat=30, lon=69),
-        projection_scale=4,
-        showland=True, landcolor="#F5F5F5",
-        showocean=True, oceancolor="#AED6F1",
-        showcoastlines=True, coastlinecolor="#BDC3C7",
-        showcountries=True, countrycolor="#BDC3C7",
-    ),
-    height=500,
-    margin=dict(l=0, r=0, t=0, b=0),
-    showlegend=False,
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)"
-)
-
-st.plotly_chart(fig_map, use_container_width=True)
-
-col1, col2, col3, col4 = st.columns(4)
-col1.markdown("🟢 **Normal** — <40°C", unsafe_allow_html=True)
-col2.markdown("🟡 **Warning** — 40-44°C", unsafe_allow_html=True)
-col3.markdown("🟠 **Danger** — 44-47°C", unsafe_allow_html=True)
-col4.markdown("🔴 **Extreme** — >47°C", unsafe_allow_html=True)
