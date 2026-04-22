@@ -140,8 +140,6 @@ st.divider()
 st.subheader("🗺️ Pakistan Heat Wave Map")
 st.markdown("Har city ka current alert status — click karo details ke liye!")
 
-import folium
-from streamlit_folium import st_folium
 
 # ── PAKISTAN MAP ─────────────────────────────────────────────
 st.divider()
