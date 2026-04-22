@@ -4,5 +4,4 @@ numpy
 pandas
 matplotlib
 scikit-learn
-tf-keras
-tensorflow==2.15.0
+pymannkendall
