@@ -135,3 +135,54 @@ if predict_btn:
         <h3 style="color:{max_color};">Overall Risk: {max_level}</h3>
         <p>{max_msg}</p><p>Max: <b>{max_temp:.1f}C</b></p>
     </div>""", unsafe_allow_html=True)
+    # ── PAKISTAN MAP ─────────────────────────────────────────────
+st.divider()
+st.subheader("🗺️ Pakistan Heat Wave Map")
+st.markdown("Har city ka current alert status — click karo details ke liye!")
+
+import folium
+from streamlit_folium import st_folium
+
+# Map banao
+m = folium.Map(
+    location=[30.3753, 69.3451],
+    zoom_start=5,
+    tiles='CartoDB positron'
+)
+
+# Har city ka forecast aur marker add karo
+for city, (lat, lon) in CITIES.items():
+    try:
+        mdl, scl, df_c = train_model(city)
+        last_30 = scl.transform(df_c[["temperature"]].tail(30)).flatten()
+        pred = mdl.predict([last_30])[0]
+        temps = scl.inverse_transform(pred.reshape(-1,1)).flatten()
+        max_temp = max(temps)
+        level, msg = get_alert(max_temp)
+        color_map = {
+            "Normal": "green",
+            "Warning": "orange", 
+            "Danger": "red",
+            "Extreme": "darkred"
+        }
+        marker_color = color_map[level]
+        popup_text = f"""
+        <b>{city}</b><br>
+        Max: {max_temp:.1f}°C<br>
+        Alert: {level}<br>
+        {msg}
+        """
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=15,
+            color=marker_color,
+            fill=True,
+            fill_color=marker_color,
+            fill_opacity=0.7,
+            popup=folium.Popup(popup_text, max_width=200),
+            tooltip=f"{city}: {max_temp:.1f}°C — {level}"
+        ).add_to(m)
+    except:
+        pass
+
+st_folium(m, width=700, height=500)
