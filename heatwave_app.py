@@ -58,16 +58,13 @@ def download_data(city, lat, lon):
 def train_model(city):
     lat, lon = CITIES[city]
     df = download_data(city, lat, lon)
-
     scaler = StandardScaler()
     scaled = scaler.fit_transform(df[["temperature"]]).flatten()
-
     X, y = [], []
     for i in range(len(scaled) - 30 - 7 + 1):
         X.append(scaled[i:i+30])
         y.append(scaled[i+30:i+30+7])
     X, y = np.array(X), np.array(y)
-
     split = int(0.8 * len(X))
     model = MultiOutputRegressor(
         GradientBoostingRegressor(n_estimators=100, max_depth=4)
@@ -75,51 +72,37 @@ def train_model(city):
     model.fit(X[:split], y[:split])
     return model, scaler, df
 
-# ── UI ────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Pakistan Heat Wave Warning System",
-    page_icon="🌡️",
-    layout="wide"
-)
-
+st.set_page_config(page_title="Pakistan Heat Wave Warning", page_icon="🌡️", layout="wide")
 st.title("🌡️ Pakistan Heat Wave Early Warning System")
 st.markdown("**AI-Powered 7-Day Forecast — NASA Data & Machine Learning**")
 st.divider()
 
 city = st.selectbox("City select karo:", list(CITIES.keys()))
-predict_btn = st.button("🔍 Forecast Dekho!", use_container_width=False)
+predict_btn = st.button("🔍 Forecast Dekho!")
 
 if predict_btn:
     with st.spinner(f"{city} ka data load ho raha hai..."):
         model, scaler, df = train_model(city)
-
     with st.spinner("AI predict kar raha hai..."):
         last_30 = scaler.transform(df[["temperature"]].tail(30)).flatten()
         pred_scaled = model.predict([last_30])[0]
-        pred_temps = scaler.inverse_transform(
-            pred_scaled.reshape(-1,1)
-        ).flatten()
+        pred_temps = scaler.inverse_transform(pred_scaled.reshape(-1,1)).flatten()
 
     st.subheader(f"📊 {city} — Aglay 7 Din Ka Forecast")
-
     cols = st.columns(7)
     for i, (col, temp) in enumerate(zip(cols, pred_temps)):
         level, msg = get_alert(temp)
         color = COLORS[level]
         with col:
             st.markdown(f"""
-            <div style="background:{color}22; border:2px solid {color};
-                        border-radius:10px; padding:10px; text-align:center;">
-                <div style="font-size:13px; font-weight:bold;">Din {i+1}</div>
-                <div style="font-size:22px; font-weight:bold; color:{color};">
-                    {temp:.1f}°C
-                </div>
+            <div style="background:{color}22;border:2px solid {color};
+                border-radius:10px;padding:10px;text-align:center;">
+                <div style="font-size:13px;font-weight:bold;">Din {i+1}</div>
+                <div style="font-size:22px;font-weight:bold;color:{color};">{temp:.1f}°C</div>
                 <div style="font-size:11px;">{level}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
     st.divider()
-
     fig, ax = plt.subplots(figsize=(10, 4))
     days = [f"Din {i+1}" for i in range(7)]
     bar_colors = [COLORS[get_alert(t)[0]] for t in pred_temps]
@@ -128,36 +111,27 @@ if predict_btn:
     ax.axhline(y=44, color="#E67E22", linestyle="--", linewidth=1.5, label="Danger 44C")
     ax.axhline(y=47, color="#E74C3C", linestyle="--", linewidth=1.5, label="Extreme 47C")
     for bar, temp in zip(bars, pred_temps):
-        ax.text(bar.get_x() + bar.get_width()/2,
-                bar.get_height() + 0.3,
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()+0.3,
                 f"{temp:.1f}C", ha="center", fontsize=10, fontweight="bold")
-    ax.set_title(f"{city} — 7-Day Heat Wave Forecast", fontsize=13, fontweight="bold")
+    ax.set_title(f"{city} — 7-Day Forecast", fontsize=13, fontweight="bold")
     ax.set_ylabel("Temperature (C)")
     ax.legend()
     ax.grid(axis="y", alpha=0.3)
     st.pyplot(fig)
 
     st.divider()
-    st.subheader("Alert Summary")
     alert_rows = []
     for i, temp in enumerate(pred_temps):
         level, msg = get_alert(temp)
-        alert_rows.append({
-            "Din": f"Din {i+1}",
-            "Temperature": f"{temp:.1f}C",
-            "Alert Level": level,
-            "Message": msg
-        })
+        alert_rows.append({"Din": f"Din {i+1}", "Temp": f"{temp:.1f}C", "Alert": level, "Message": msg})
     st.dataframe(pd.DataFrame(alert_rows), use_container_width=True, hide_index=True)
 
     max_temp = max(pred_temps)
     max_level, max_msg = get_alert(max_temp)
     max_color = COLORS[max_level]
     st.markdown(f"""
-    <div style="background:{max_color}22; border:2px solid {max_color};
-                border-radius:12px; padding:15px; text-align:center; margin-top:10px;">
+    <div style="background:{max_color}22;border:2px solid {max_color};
+        border-radius:12px;padding:15px;text-align:center;margin-top:10px;">
         <h3 style="color:{max_color};">Overall Risk: {max_level}</h3>
-        <p style="font-size:16px;">{max_msg}</p>
-        <p>Max Temperature: <b>{max_temp:.1f}C</b></p>
-    </div>
-    """, unsafe_allow_html=True)
+        <p>{max_msg}</p><p>Max: <b>{max_temp:.1f}C</b></p>
+    </div>""", unsafe_allow_html=True)
