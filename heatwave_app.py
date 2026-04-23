@@ -216,3 +216,60 @@ if predict_btn:
         <h3 style="color:{max_color};">Overall Risk: {max_level}</h3>
         <p>{max_msg}</p><p>Max: <b>{max_temp:.1f}C</b></p>
     </div>""", unsafe_allow_html=True)
+    # ── HISTORICAL HEAT WAVES ─────────────────────────────────────
+st.divider()
+st.subheader("📈 Historical Heat Waves Analysis")
+st.markdown("Pakistan mein past ki worst heat waves — 2015 Karachi tragedy!")
+
+heat_city = st.selectbox("City select karo history ke liye:", 
+                          list(CITIES.keys()), key="heat_city")
+
+if st.button("📊 History Dekho!"):
+    with st.spinner(f"{heat_city} ki history load ho rahi hai..."):
+        _, _, df_hist = train_model(heat_city)
+    
+    # Annual max temperature
+    df_hist['year'] = df_hist['date'].dt.year
+    annual_max = df_hist.groupby('year')['temperature'].max().reset_index()
+    annual_max.columns = ['year', 'max_temp']
+    
+    # Heat wave years detect karo (>45C)
+    hw_years = annual_max[annual_max['max_temp'] >= 45]
+    
+    # Plot
+    fig2, ax2 = plt.subplots(figsize=(12, 5))
+    ax2.plot(annual_max['year'], annual_max['max_temp'], 
+             color='#E74C3C', linewidth=2, marker='o', markersize=4)
+    ax2.fill_between(annual_max['year'], annual_max['max_temp'], 
+                     alpha=0.2, color='#E74C3C')
+    ax2.axhline(y=45, color='orange', linestyle='--', 
+                linewidth=1.5, label='Heat Wave Threshold (45°C)')
+    ax2.axhline(y=47, color='red', linestyle='--', 
+                linewidth=1.5, label='Extreme Heat (47°C)')
+    
+    # 2015 mark karo
+    if heat_city in ['Hyderabad', 'Sukkur', 'Lahore', 'Faisalabad']:
+        ax2.axvline(x=2015, color='darkred', linestyle='-', 
+                    linewidth=2, label='2015 Karachi Heat Wave')
+        ax2.annotate('2015 Tragedy\n1,200+ deaths', 
+                     xy=(2015, annual_max[annual_max['year']==2015]['max_temp'].values[0]),
+                     xytext=(2010, 48),
+                     arrowprops=dict(arrowstyle='->', color='darkred'),
+                     color='darkred', fontsize=10, fontweight='bold')
+    
+    ax2.set_title(f'{heat_city} — Annual Maximum Temperature (1981-2025)', 
+                  fontsize=13, fontweight='bold')
+    ax2.set_xlabel('Year')
+    ax2.set_ylabel('Max Temperature (°C)')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    st.pyplot(fig2)
+    
+    # Worst years table
+    st.subheader("🔥 Worst Heat Wave Years")
+    worst = annual_max.nlargest(5, 'max_temp').reset_index(drop=True)
+    worst.columns = ['Year', 'Max Temperature (°C)']
+    worst['Alert'] = worst['Max Temperature (°C)'].apply(
+        lambda x: '🚨 Extreme' if x >= 47 else ('🔴 Danger' if x >= 45 else '🟡 Warning')
+    )
+    st.dataframe(worst, use_container_width=True, hide_index=True)
